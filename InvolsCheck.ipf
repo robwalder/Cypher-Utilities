@@ -1,5 +1,5 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#include "::AR Data:SaveAsAsylumForceRamp" version>=2.0
+#include "::AR-Data:SaveAsAsylumForceRamp" version>=2.0
 
 // Initialize Check Invols
 Function InitCheckInvols()
