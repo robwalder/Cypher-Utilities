@@ -1,5 +1,71 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version=1.0
+#pragma version=2.0
+
+// For version 2
+// Added Move to ZPosition and DoClosedLoopZMotion
+
+Function MoveToZPositionClosedLoop(TargetZPosition,[Callback,TimeToRamp])
+	Variable TargetZPosition
+	String Callback
+	Variable TimeToRamp
+	
+	If(ParamIsDefault(Callback))
+		Callback=""
+	EndIf
+	If(ParamIsDefault(TimeToRamp))
+		TimeToRamp=0.1
+	EndIf
+	
+	Variable Error=0
+	
+	// Stop anything on the controller
+	Error += td_stop()
+	Error +=td_WriteString("Event.0", "Clear")
+
+	//  Setup z feedback loop, put in correct I value for PID loop.  
+	Error +=	ir_SetPISLoop(2,"Always,Never","ZSensor",NaN,0,10^GV("ZIGain"),0,"Height",-inf,inf)
+
+ 	// Ramp to z position the amount of time allotted
+ 	Error += td_SetRamp(TimeToRamp, "PIDSLoop.2.Setpoint", 0, TargetZPosition, "", 0, 0, "", 0, 0, Callback)
+ 	
+	if (Error>0)
+		print "Error in MoveToZPositionClosedLoop: ", Error
+	endif
+
+End  // Function RampToPointAtConstantForce_nm
+
+// For doing closed loop motion in the Z Direction
+Function DoClosedLoopZMotion(ZSensorSetPoint,Deflection,ZSensor,[ZSetPointDecimation,DecimationFactor,Callback])
+	Wave ZSensorSetPoint,Deflection,ZSensor
+	Variable DecimationFactor,ZSetPointDecimation
+	String Callback
+	Variable Error	
+	If(ParamIsDefault(ZSetPointDecimation))
+		ZSetPointDecimation=100
+	EndIf
+	
+	// Stop anything on the controller
+	Error += td_stop()
+	Error +=td_WriteString("Event.0", "Clear")
+
+	//  Setup z feedback loop, put in correct I value for PID loop.  
+	Error +=	ir_SetPISLoop(2,"Always,Never","ZSensor",NaN,0,10^GV("ZIGain"),0,"Height",-inf,inf)
+
+	// Setup motion.  Decimate this wave for longer time traces.
+	Error += td_xSetOutWave(0, "0,0", "PIDSLoop.2.Setpoint", ZSensorSetPoint,ZSetPointDecimation)
+ 
+ 	// Setup input waves for x,y,z and deflection.  After the motion is done, callback will execute.  Decimation set to 1 so that we always get 50KHz sample rate
+	Error += td_xSetInWavePair(0, "0,0", "Cypher.LVDT.Z", ZSensor, "Deflection", Deflection,Callback, DecimationFactor)
+
+	// Do the motion
+	Error +=td_WriteString("Event.0", "once")
+
+	if (Error>0)
+		print "Error in Closed Loop Z Sensor Motion ", Error
+	endif
+	
+End
+
 
 Function MoveToPointClosedLoop(MoveToPointCFSettings,[Callback])
 	Wave MoveToPointCFSettings
