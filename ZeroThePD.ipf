@@ -64,7 +64,7 @@ Function ZeroThePD(Callback)
 	Wave/T GVD=root:Packages:MFP3D:Main:Variables:GeneralVariablesDescription
 	String RealCallback="ZeroThePDCallback(\""+Callback+"\")"
 	GVD[%ARUserCallbackPDMotor][%Description]=RealCallback
-	//ZeroPD()
+	ZeroPD()
 End
 // callback for zero the pd.  
 Function ZeroThePDCallback(Callback)
