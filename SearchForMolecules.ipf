@@ -309,7 +309,7 @@ End
 
 Window Search_Panel() : Panel
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /K=1 /W=(1475,85,1758,718) as "SearchForMolecule"
+	NewPanel /K=1 /W=(1214,56,1497,689) as "SearchForMolecule"
 	ModifyPanel cbRGB=(52224,52224,52224)
 	SetDrawLayer UserBack
 	DrawLine 50,50,60,60
