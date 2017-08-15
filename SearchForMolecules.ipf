@@ -522,6 +522,11 @@ Function SearchGridQSPopMenuProc(pa) : PopupMenuControl
 			
 			Duplicate/O/R=[0,*][popNum-1] SearchQuickSettings,SearchSettings
 			Redimension/N=-1 SearchSettings
+			// Build new grid when you select a quick setting.
+			MakeCoarseGrid()    	
+			Wave CurrentX = root:SearchGrid:CurrentX
+ 			Wave CurrentY= root:SearchGrid:CurrentY
+			MakeFineGrid(CurrentX[0],CurrentY[0])
 
 			break
 		case -1: // control being killed
