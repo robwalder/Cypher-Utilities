@@ -112,6 +112,13 @@ Function SearchForMolecule([FoundMolecule,Callback])
 	EndIf
 	
 	SearchMode[%Callback]=Callback
+	
+	// Update current location
+	Wave CurrentX = root:SearchGrid:CurrentX
+      Wave CurrentY= root:SearchGrid:CurrentY
+      CurrentX[0]=(td_rv("Cypher.LVDT.X")-GV("XLVDTOffset"))*GV("XLVDTSens")
+      CurrentY[0]=(td_rv("Cypher.LVDT.Y")-GV("YLVDTOffset"))*GV("YLVDTSens")
+
 	If(FoundMolecule)
 		SearchMode[%CurrentMode]="StayAtThisSpot"
 		SearchSettings[%LastGoodIteration]=SearchSettings[%MasterIteration]
