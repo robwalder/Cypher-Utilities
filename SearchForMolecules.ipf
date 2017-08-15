@@ -44,7 +44,12 @@ Function InitSearch([ShowUserInterface])
       	Make/N=1/O root:SearchGrid:PreviousY
       	Make/N=1/O root:SearchGrid:CurrentX
       	Make/N=1/O root:SearchGrid:CurrentY
-
+      	Make/N=1/O root:SearchGrid:FoundX
+      	Make/N=1/O root:SearchGrid:FoundY
+      	Wave FoundX=root:SearchGrid:FoundX
+      	WAve FoundY=root:SearchGrid:FoundY
+	FoundX[0]=NaN
+	FoundY[0]=NaN
 	
 	MakeCoarseGrid()    	
     	MakeFineGrid(0,0)
@@ -73,6 +78,8 @@ Function ShowSearchInfo(SelectedDisplay)
 	Wave PreviousY=root:SearchGrid:PreviousY
 	Wave CurrentX=root:SearchGrid:CurrentX
 	Wave CurrentY=root:SearchGrid:CurrentY
+	Wave FoundX=root:SearchGrid:FoundX
+	Wave FoundY=root:SearchGrid:FoundY
 	
 	strswitch(SelectedDisplay)
 		case "SearchGrids":
@@ -82,13 +89,18 @@ Function ShowSearchInfo(SelectedDisplay)
 				AppendToGraph CoarseGridY vs CoarseGridX
 				AppendToGraph PreviousY vs PreviousX
 				AppendToGraph CurrentY vs CurrentX
+				AppendToGraph FoundY vs FoundX
 				ModifyGraph rgb(FineGridY) = (0,65535,0)
 				ModifyGraph rgb(PreviousY) = (0,0,65535)
 				ModifyGraph rgb(CurrentY) = (0,0,0)
+				ModifyGraph rgb(FoundY) = (65535,0,0)
 				ModifyGraph mode= 3
 				ModifyGraph marker(CurrentY) = 8 
 				ModifyGraph msize(CurrentY) = 4
 				ModifyGraph mrkThick(CurrentY) = 1
+				ModifyGraph marker(FoundY) = 19 
+				ModifyGraph msize(FoundY) = 1.5
+
 				Label Left "Y Position (m)"
 				Label bottom "X Position (m)"
 
@@ -98,17 +110,27 @@ Function ShowSearchInfo(SelectedDisplay)
 	Endswitch
 End
 
-Function SearchForMolecule([FoundMolecule,Callback])
+Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 	Variable FoundMolecule
 	String Callback
+	Variable FoundX_V,FoundY_V
 	
 	Wave SearchSettings=root:SearchGrid:SearchSettings
 	Wave/T SearchMode=root:SearchGrid:SearchMode
+	Wave FoundX=root:SearchGrid:FoundX
+	Wave FoundY=root:SearchGrid:FoundY
+	
 	If(ParamIsDefault(FoundMolecule))
 		FoundMolecule=0
 	EndIf
 	If(ParamIsDefault(Callback))
 		Callback=""
+	EndIf
+	If(ParamIsDefault(FoundX_V))
+		FoundX_V=td_rv("Cypher.LVDT.X")
+	EndIf
+	If(ParamIsDefault(FoundY_V))
+		FoundY_V=td_rv("Cypher.LVDT.Y")
 	EndIf
 	
 	SearchMode[%Callback]=Callback
@@ -122,6 +144,11 @@ Function SearchForMolecule([FoundMolecule,Callback])
 	If(FoundMolecule)
 		SearchMode[%CurrentMode]="StayAtThisSpot"
 		SearchSettings[%LastGoodIteration]=SearchSettings[%MasterIteration]
+		Variable NumFound=DimSize(FoundX,0)
+		InsertPoints NumFound,1,FoundX,FoundY
+	      FoundX[NumFound]=(FoundX_V-GV("XLVDTOffset"))*GV("XLVDTSens")
+	      FoundY[NumFound]=(FoundY_V-GV("YLVDTOffset"))*GV("YLVDTSens")
+
 	EndIf
 	
 	String CurrentSearchMode=SearchMode[%CurrentMode]
