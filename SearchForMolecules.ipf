@@ -46,10 +46,13 @@ Function InitSearch([ShowUserInterface])
       	Make/N=1/O root:SearchGrid:CurrentY
       	Make/N=1/O root:SearchGrid:FoundX
       	Make/N=1/O root:SearchGrid:FoundY
+      	Make/N=1/O root:SearchGrid:FoundCoarseNumber
       	Wave FoundX=root:SearchGrid:FoundX
       	WAve FoundY=root:SearchGrid:FoundY
+      	WAve FoundCoarseNumber=root:SearchGrid:FoundCoarseNumber
 	FoundX[0]=NaN
 	FoundY[0]=NaN
+	FoundCoarseNumber[0]=0
 	
 	MakeCoarseGrid()    	
     	MakeFineGrid(0,0)
@@ -124,10 +127,11 @@ Function ShowSearchInfo(SelectedDisplay)
 				ModifyGraph mrkThick(CurrentY) = 1
 				ModifyGraph marker(FoundY) = 19 
 				ModifyGraph msize(FoundY) = 1.5
-				
+
 				Label Left "Y Position (m)"
 				Label bottom "X Position (m)"
-
+				
+				SetWindow SearchGridDisplay hook(SearchGridHook)=SearchGridHookFunction
 			EndIf		
 		
 		break
@@ -143,6 +147,7 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 	Wave/T SearchMode=root:SearchGrid:SearchMode
 	Wave FoundX=root:SearchGrid:FoundX
 	Wave FoundY=root:SearchGrid:FoundY
+      	WAve FoundCoarseNumber=root:SearchGrid:FoundCoarseNumber
 	
 	If(ParamIsDefault(FoundMolecule))
 		FoundMolecule=0
@@ -169,9 +174,10 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 		SearchMode[%CurrentMode]="StayAtThisSpot"
 		SearchSettings[%LastGoodIteration]=SearchSettings[%MasterIteration]
 		Variable NumFound=DimSize(FoundX,0)
-		InsertPoints NumFound,1,FoundX,FoundY
+		InsertPoints NumFound,1,FoundX,FoundY,FoundCoarseNumber
 	      FoundX[NumFound]=(FoundX_V-GV("XLVDTOffset"))*GV("XLVDTSens")
 	      FoundY[NumFound]=(FoundY_V-GV("YLVDTOffset"))*GV("YLVDTSens")
+	      FoundCoarseNumber[NumFound]=SearchSettings[%CoarseSpotNumber]
 
 	EndIf
 	
@@ -196,6 +202,14 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 				FinishIteration()
 			EndIf
 		break
+		case "LastFound":
+			If(SearchSettings[%IterationsAtCurrentSpot]>=SearchSettings[%NumIterationsPerLastFound])
+				NextPosition("LastFound")
+			Else
+				FinishIteration()
+			EndIf
+
+		break
 		case "StayAtThisSpot":
 			Variable IterationsSinceHit=SearchSettings[%MasterIteration]-SearchSettings[%LastGoodIteration]
 			// If this hotspot is cold then go to another spot.  Use a fine search, if the user wants that.
@@ -204,10 +218,16 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 					Wave CurrentX = root:SearchGrid:CurrentX
 				      Wave CurrentY= root:SearchGrid:CurrentY
 			          	MakeFineGrid(CurrentX[0],CurrentY[0])
-
 					SearchSettings[%FineSpotNumber]=-1
 					SearchSettings[%FineLevel]+=1
 					NextPosition("Fine")
+					
+				ElseIf(SearchSettings[%UseLastFoundSearch])
+					MakeLastFoundGrid()
+					SearchSettings[%CurrentLastFoundIndex]=-1
+					SearchSettings[%LastFoundIteration]+=1
+					NextPosition("LastFound")
+					
 				Else
 					NextPosition("Coarse")
 				EndIf
@@ -277,6 +297,22 @@ Function NextPosition(NewSearchMode)
 			EndIf
 
 		break
+		case "LastFound":
+			Wave LastFoundX=root:SearchGrid:LastFoundX
+			Wave LastFoundY=root:SearchGrid:LastFoundY
+			SearchSettings[%CurrentLastFoundIndex]+=1
+			Variable LastFoundSpotNumber=SearchSettings[%CurrentLastFoundIndex]
+			Variable TotalLastFoundSpots=DimSize(LastFoundX,0)
+//			// If we've exceeded the number of fine spots in the grid, go to the next coarse spot
+			If(LastFoundSpotNumber>=TotalLastFoundSpots)
+				NextPosition("Coarse")
+			Else 
+//			// If not, go to the next fine spot
+				GoToLocation(LastFoundX[LastFoundSpotNumber],LastFoundX[LastFoundSpotNumber])
+			EndIf
+
+		break
+		
 	Endswitch
 	
 End
@@ -305,6 +341,35 @@ Function MakeFineGrid(CoarseX,CoarseY,[XPosWaveName,YPosWaveName])
 	
 	MakeGrid(SearchSettings[%FineNumX],SearchSettings[%FineNumY],SearchSettings[%FineDistX],SearchSettings[%FineDistY],XPosWaveName=XPosWaveName,YPosWaveName=YPosWaveName,XOffset=FineXOffset,YOffset=FineYOffset)
 
+End
+
+Function MakeLastFoundGrid()
+	Variable AnyLastFoundToVisit=0
+	
+      	Wave FoundX=root:SearchGrid:FoundX
+      	Wave FoundY=root:SearchGrid:FoundY
+      	Wave FoundCoarseNumber=root:SearchGrid:FoundCoarseNumber
+	Wave SearchSettings=root:SearchGrid:SearchSettings
+      		
+	Variable TargetSpotNumber=SearchSettings[%CoarseSpotNumber]
+	Variable NumFound=DimSize(FoundCoarseNumber,0)
+	Variable MaxFoundIndex=NumFound-1
+	Variable MaxFoundToVisit=SearchSettings[%NumLastFoundToVisit]
+	Variable NumFoundToVisit=0
+	Variable FoundCounter=0
+	For(FoundCounter=0;(NumFound-FoundCounter>0)&&(FoundCounter<MaxFoundToVisit);FoundCounter+=1)
+		Variable TargetIndex=MaxFoundIndex-FoundCounter
+		If(TargetSpotNumber==FoundCoarseNumber[TargetIndex])
+			NumFoundToVisit+=1
+		EndIf
+	EndFor
+	
+	If(NumFoundToVisit>0)
+		Duplicate/O/R=[MaxFoundIndex-NumFoundToVisit,NumFoundToVisit] FoundX, root:SearchGrid:LastFoundX
+		Duplicate/O/R=[MaxFoundIndex-NumFoundToVisit,NumFoundToVisit] FoundY, root:SearchGrid:LastFoundY
+		AnyLastFoundToVisit=1
+	EndIf
+	Return AnyLastFoundToVisit
 End
 	
 Function MakeGrid(NumX,NumY,XStepSize,YStepSize, [XPosWaveName,YPosWaveName,XOffset,YOffset])
