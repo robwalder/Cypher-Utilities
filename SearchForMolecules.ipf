@@ -52,7 +52,7 @@ Function InitSearch([ShowUserInterface])
       	WAve FoundCoarseNumber=root:SearchGrid:FoundCoarseNumber
 	FoundX[0]=NaN
 	FoundY[0]=NaN
-	FoundCoarseNumber[0]=0
+	FoundCoarseNumber[0]=NaN
 	
 	MakeCoarseGrid()    	
     	MakeFineGrid(0,0)
@@ -174,7 +174,8 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 		SearchMode[%CurrentMode]="StayAtThisSpot"
 		SearchSettings[%LastGoodIteration]=SearchSettings[%MasterIteration]
 		Variable NumFound=DimSize(FoundX,0)
-		InsertPoints NumFound,1,FoundX,FoundY,FoundCoarseNumber
+		Variable NewWaveSize=NumFound+1
+		Redimension/N=(NewWaveSize) FoundX,FoundY,FoundCoarseNumber
 	      FoundX[NumFound]=(FoundX_V-GV("XLVDTOffset"))*GV("XLVDTSens")
 	      FoundY[NumFound]=(FoundY_V-GV("YLVDTOffset"))*GV("YLVDTSens")
 	      FoundCoarseNumber[NumFound]=SearchSettings[%CoarseSpotNumber]
@@ -203,7 +204,7 @@ Function SearchForMolecule([FoundMolecule,Callback,FoundX_V,FoundY_V])
 			EndIf
 		break
 		case "LastFound":
-			If(SearchSettings[%IterationsAtCurrentSpot]>=SearchSettings[%NumIterationsPerLastFound])
+			If(SearchSettings[%IterationsAtCurrentSpot]>=SearchSettings[%NumIterationPerLastFound])
 				NextPosition("LastFound")
 			Else
 				FinishIteration()
@@ -308,7 +309,7 @@ Function NextPosition(NewSearchMode)
 				NextPosition("Coarse")
 			Else 
 //			// If not, go to the next fine spot
-				GoToLocation(LastFoundX[LastFoundSpotNumber],LastFoundX[LastFoundSpotNumber])
+				GoToLocation(LastFoundX[LastFoundSpotNumber],LastFoundY[LastFoundSpotNumber])
 			EndIf
 
 		break
@@ -365,8 +366,13 @@ Function MakeLastFoundGrid()
 	EndFor
 	
 	If(NumFoundToVisit>0)
-		Duplicate/O/R=[MaxFoundIndex-NumFoundToVisit,NumFoundToVisit] FoundX, root:SearchGrid:LastFoundX
-		Duplicate/O/R=[MaxFoundIndex-NumFoundToVisit,NumFoundToVisit] FoundY, root:SearchGrid:LastFoundY
+		Duplicate/O/R=[NumFound-NumFoundToVisit,MaxFoundIndex] FoundX, root:SearchGrid:LastFoundX
+		Duplicate/O/R=[NumFound-NumFoundToVisit,MaxFoundIndex] FoundY, root:SearchGrid:LastFoundY
+		// Eliminates nans at the beginning of FoundX and FoundY
+		WaveTransform/O zapNaNs root:SearchGrid:LastFoundX
+		WaveTransform/O zapNaNs root:SearchGrid:LastFoundY
+		// Reverse order so we visit most recent found molecule sites first.
+		Reverse root:SearchGrid:LastFoundX,root:SearchGrid:LastFoundY
 		AnyLastFoundToVisit=1
 	EndIf
 	Return AnyLastFoundToVisit
