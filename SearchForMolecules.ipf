@@ -68,6 +68,30 @@ Function/S SearchQuickSettingsList()
 	Return GetWaveDimNames(SearchQuickSettings,DimNumber=1)
 End
 
+Function SearchGridHookFunction(s)
+	STRUCT WMWinHookStruct &s
+	Variable hookResult = 0	// 0 if we do not handle event, 1 if we handle it.
+	Variable RightClick=(s.eventmod & 2^4)!=0
+	Variable ControlButton=(s.eventmod & 2^3)!=0
+	Variable MouseXPos=AxisValFromPixel("SearchGridDisplay","bottom",s.mouseloc.h)
+	Variable MouseYPos=AxisValFromPixel("SearchGridDisplay","left",s.mouseloc.v)
+	Wave SearchSettings=root:SearchGrid:SearchSettings
+	Wave/T SearchMode=root:SearchGrid:SearchMode
+
+	switch(s.eventCode)
+		case 3:	// Mouse down event
+			
+			If(RightClick&&ControlButton)
+				SearchSettings[%IterationsAtCurrentSpot]=1
+				SearchMode[%CurrentMode]="Coarse"
+				GoToLocation(MouseXPos,MouseYPos)
+				hookResult=1
+			EndIf
+		break	
+	EndSwitch			
+	return hookResult
+End
+
 Function ShowSearchInfo(SelectedDisplay)
 	String SelectedDisplay
 	Wave CoarseGridX=root:SearchGrid:CoarseGridX
@@ -100,7 +124,7 @@ Function ShowSearchInfo(SelectedDisplay)
 				ModifyGraph mrkThick(CurrentY) = 1
 				ModifyGraph marker(FoundY) = 19 
 				ModifyGraph msize(FoundY) = 1.5
-
+				
 				Label Left "Y Position (m)"
 				Label bottom "X Position (m)"
 
